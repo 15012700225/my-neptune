@@ -1,4 +1,3 @@
-use crate::gpu::GPUSelector;
 use log::*;
 use std::collections::HashMap;
 use std::fmt;
@@ -11,7 +10,7 @@ const MAX_LEN: usize = 128;
 
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
-struct cl_amd_device_topology {
+pub struct cl_amd_device_topology {
     r#type: u32,
     unused: [u8; 17],
     bus: u8,
@@ -23,6 +22,15 @@ lazy_static! {
     pub static ref FUTHARK_CONTEXT_MAP: Mutex<HashMap<u32, Arc<Mutex<FutharkContext>>>> =
         Mutex::new(HashMap::new());
 }
+
+
+
+#[derive(Debug, Clone, Copy)]
+pub enum GPUSelector {
+    BusId(u32),
+    Index(usize),
+}
+
 
 #[derive(Debug, Clone)]
 pub enum ClError {
@@ -36,6 +44,7 @@ pub enum ClError {
     CannotCreateQueue,
 }
 pub type ClResult<T> = std::result::Result<T, ClError>;
+
 
 impl fmt::Display for ClError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -169,7 +178,6 @@ fn get_device_by_bus_id(bus_id: u32) -> ClResult<bindings::cl_device_id> {
             return Ok(dev);
         }
     }
-
     Err(ClError::DeviceNotFound)
 }
 
@@ -276,32 +284,7 @@ pub fn futhark_context(selector: GPUSelector) -> ClResult<Arc<Mutex<FutharkConte
 }
 
 pub fn default_futhark_context() -> ClResult<Arc<Mutex<FutharkContext>>> {
-    let bus_id = std::env::var("NEPTUNE_DEFAULT_GPU")
-        .ok()
-        .and_then(|v| match v.parse::<u32>() {
-            Ok(bus_id) => Some(bus_id),
-            Err(_) => {
-                error!("Bus-id '{}' is given in wrong format!", v);
-                None
-            }
-        });
-
-    match bus_id {
-        Some(bus_id) => {
-            info!(
-                "Using device with bus-id {} for creating the FutharkContext...",
-                bus_id
-            );
-            futhark_context(GPUSelector::BusId(bus_id))
-        }
-        .or_else(|_| {
-            error!(
-                "A device with the given bus-id doesn't exist! Defaulting to the first device..."
-            );
-            futhark_context(GPUSelector::Index(0))
-        }),
-        None => futhark_context(GPUSelector::Index(0)),
-    }
+    futhark_context(GPUSelector::Index(0))
 }
 
 fn to_u32(inp: &[u8]) -> u32 {
