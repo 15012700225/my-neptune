@@ -1,4 +1,3 @@
-use crate::cl;
 use crate::error::Error;
 use crate::poseidon::SimplePoseidonBatchHasher;
 use crate::{Arity, BatchHasher, Strength, DEFAULT_STRENGTH};
@@ -8,7 +7,6 @@ use std::marker::PhantomData;
 
 #[derive(Clone, Copy, Debug)]
 pub enum BatcherType {
-    CustomGPU(cl::GPUSelector),
     GPU,
     CPU,
 }
@@ -16,18 +14,18 @@ pub enum BatcherType {
 #[cfg(not(target_os = "macos"))]
 use crate::gpu::GPUBatchHasher;
 
-pub enum Batcher<A>
+pub enum Batcher<'a, A>
 where
     A: Arity<Fr>,
 {
     #[cfg(not(target_os = "macos"))]
-    GPU(GPUBatchHasher<A>),
+    GPU(GPUBatchHasher<'a, A>),
     #[cfg(target_os = "macos")]
     GPU(NoGPUBatchHasher<A>),
-    CPU(SimplePoseidonBatchHasher<A>),
+    CPU(SimplePoseidonBatchHasher<'a, A>),
 }
 
-impl<A> Batcher<A>
+impl<A> Batcher<'_, A>
 where
     A: Arity<Fr>,
 {
@@ -50,22 +48,11 @@ where
         match t {
             #[cfg(all(feature = "gpu", target_os = "macos"))]
             BatcherType::GPU => panic!("GPU unimplemented on macos"),
-            #[cfg(all(feature = "gpu", target_os = "macos"))]
-            BatcherType::CustomGPU(_) => panic!("GPU unimplemented on macos"),
             #[cfg(all(feature = "gpu", not(target_os = "macos")))]
             BatcherType::GPU => Ok(Batcher::GPU(GPUBatchHasher::<A>::new_with_strength(
-                cl::default_futhark_context()?,
                 strength,
                 max_batch_size,
             )?)),
-            #[cfg(all(feature = "gpu", not(target_os = "macos")))]
-            BatcherType::CustomGPU(selector) => {
-                Ok(Batcher::GPU(GPUBatchHasher::<A>::new_with_strength(
-                    cl::futhark_context(*selector)?,
-                    strength,
-                    max_batch_size,
-                )?))
-            }
 
             BatcherType::CPU => Ok(Batcher::CPU(
                 SimplePoseidonBatchHasher::<A>::new_with_strength(strength, max_batch_size)?,
@@ -74,7 +61,7 @@ where
     }
 }
 
-impl<A> BatchHasher<A> for Batcher<A>
+impl<A> BatchHasher<A> for Batcher<'_, A>
 where
     A: Arity<Fr>,
 {

@@ -1,5 +1,3 @@
-#[cfg(feature = "gpu")]
-use crate::cl;
 use std::{error, fmt};
 
 #[derive(Debug, Clone)]
@@ -11,17 +9,8 @@ pub enum Error {
     IndexOutOfBounds,
     /// The provided leaf was not found in the tree
     GPUError(String),
-    #[cfg(feature = "gpu")]
-    ClError(cl::ClError),
     DecodingError,
     Other(String),
-}
-
-#[cfg(feature = "gpu")]
-impl From<cl::ClError> for Error {
-    fn from(e: cl::ClError) -> Self {
-        Self::ClError(e)
-    }
 }
 
 impl error::Error for Error {}
@@ -35,8 +24,6 @@ impl fmt::Display for Error {
             ),
             Error::IndexOutOfBounds => write!(f, "The referenced index is outs of bounds."),
             Error::GPUError(s) => write!(f, "GPU Error: {}", s),
-            #[cfg(feature = "gpu")]
-            Error::ClError(e) => write!(f, "OpenCL Error: {}", e),
             Error::DecodingError => write!(f, "PrimeFieldDecodingError"),
             Error::Other(s) => write!(f, "{}", s),
         }
