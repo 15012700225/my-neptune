@@ -8,6 +8,7 @@ use bellperson::gadgets::num::AllocatedNum;
 use bellperson::{ConstraintSystem, LinearCombination, SynthesisError};
 use ff::Field;
 use ff::ScalarEngine as Engine;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Similar to `num::Num`, we use `Elt` to accumulate both values and linear combinations, then eventually
@@ -20,7 +21,7 @@ enum Elt<E: Engine> {
     Num(num::Num<E>),
 }
 
-impl<E: Engine> Elt<E> {
+impl<E: Engine + Debug> Elt<E> {
     fn is_allocated(&self) -> bool {
         if let Self::Allocated(_) = self {
             true
@@ -118,7 +119,7 @@ where
 /// PoseidonCircuit implementation.
 impl<'a, E, A> PoseidonCircuit<'a, E, A>
 where
-    E: Engine,
+    E: Engine + Debug,
     A: Arity<E::Fr>,
 {
     /// Create a new Poseidon hasher for `preimage`.
@@ -344,7 +345,7 @@ pub fn poseidon_hash<CS, E, A>(
 ) -> Result<AllocatedNum<E>, SynthesisError>
 where
     CS: ConstraintSystem<E>,
-    E: Engine,
+    E: Engine + Debug,
     A: Arity<E::Fr>,
 {
     let tag_element = Elt::num_from_fr::<CS>(constants.arity_tag);
@@ -358,7 +359,7 @@ where
 }
 
 /// Compute l^5 and enforce constraint. If round_key is supplied, add it to result.
-fn quintic_s_box<CS: ConstraintSystem<E>, E: Engine>(
+fn quintic_s_box<CS: ConstraintSystem<E>, E: Engine + Debug>(
     mut cs: CS,
     e: &Elt<E>,
     post_round_key: Option<E::Fr>,
@@ -381,7 +382,7 @@ fn quintic_s_box<CS: ConstraintSystem<E>, E: Engine>(
 }
 
 /// Compute l^5 and enforce constraint. If round_key is supplied, add it to l first.
-fn quintic_s_box_pre_add<CS: ConstraintSystem<E>, E: Engine>(
+fn quintic_s_box_pre_add<CS: ConstraintSystem<E>, E: Engine + Debug>(
     mut cs: CS,
     e: &Elt<E>,
     pre_round_key: Option<E::Fr>,
@@ -409,7 +410,7 @@ fn quintic_s_box_pre_add<CS: ConstraintSystem<E>, E: Engine>(
 }
 
 /// Compute l^5 and enforce constraint. If round_key is supplied, add it to l first.
-fn constant_quintic_s_box_pre_add_tag<CS: ConstraintSystem<E>, E: Engine>(
+fn constant_quintic_s_box_pre_add_tag<CS: ConstraintSystem<E>, E: Engine + Debug>(
     tag: &Elt<E>,
     pre_round_key: Option<E::Fr>,
     post_round_key: Option<E::Fr>,
@@ -424,7 +425,7 @@ fn constant_quintic_s_box_pre_add_tag<CS: ConstraintSystem<E>, E: Engine>(
 }
 
 /// Calculates square of sum and enforces that constraint.
-pub fn square_sum<CS: ConstraintSystem<E>, E: Engine>(
+pub fn square_sum<CS: ConstraintSystem<E>, E: Engine + Debug>(
     mut cs: CS,
     to_add: E::Fr,
     num: &AllocatedNum<E>,
@@ -455,7 +456,7 @@ where
 }
 
 /// Calculates (a * (pre_add + b)) + post_add — and enforces that constraint.
-pub fn mul_sum<CS: ConstraintSystem<E>, E: Engine>(
+pub fn mul_sum<CS: ConstraintSystem<E>, E: Engine + Debug>(
     mut cs: CS,
     a: &AllocatedNum<E>,
     b: &AllocatedNum<E>,
@@ -526,7 +527,7 @@ where
 }
 
 /// Calculates a * (b + to_add) — and enforces that constraint.
-pub fn mul_pre_sum<CS: ConstraintSystem<E>, E: Engine>(
+pub fn mul_pre_sum<CS: ConstraintSystem<E>, E: Engine + Debug>(
     mut cs: CS,
     a: &AllocatedNum<E>,
     b: &AllocatedNum<E>,
@@ -560,7 +561,7 @@ where
     Ok(res)
 }
 
-fn scalar_product_with_add<E: Engine, CS: ConstraintSystem<E>>(
+fn scalar_product_with_add<E: Engine + Debug, CS: ConstraintSystem<E>>(
     elts: &[Elt<E>],
     scalars: &[E::Fr],
     to_add: E::Fr,
@@ -571,7 +572,7 @@ fn scalar_product_with_add<E: Engine, CS: ConstraintSystem<E>>(
     Ok(tmp2)
 }
 
-fn scalar_product<E: Engine, CS: ConstraintSystem<E>>(
+fn scalar_product<E: Engine + Debug, CS: ConstraintSystem<E>>(
     elts: &[Elt<E>],
     scalars: &[E::Fr],
 ) -> Result<Elt<E>, SynthesisError> {
