@@ -91,6 +91,7 @@ where
         leaf_count: usize,
         max_tree_batch_size: usize,
         rows_to_discard: usize,
+        gpu_index:usize,
     ) -> Result<Self, Error> {
         let builder = Self {
             leaf_count,
@@ -98,7 +99,7 @@ where
             fill_index: 0,
             tree_constants: PoseidonConstants::<Bls12, TreeArity>::new(),
             tree_batcher: if let Some(t) = &t {
-                Some(Batcher::<TreeArity>::new(t, max_tree_batch_size)?)
+                Some(Batcher::<TreeArity>::new(t, max_tree_batch_size, gpu_index)?)
             } else {
                 None
             },
@@ -256,11 +257,11 @@ mod tests {
     #[test]
     fn test_tree_builder() {
         // 16KiB tree has 512 leaves.
-        test_tree_builder_aux(None, 512, 32, 512, 512);
-        test_tree_builder_aux(Some(BatcherType::CPU), 512, 32, 512, 512);
+        test_tree_builder_aux(None, 512, 32, 512, 512,0);
+        test_tree_builder_aux(Some(BatcherType::CPU), 512, 32, 512, 512,0);
 
         #[cfg(all(feature = "gpu", not(target_os = "macos")))]
-        test_tree_builder_aux(Some(BatcherType::GPU), 512, 32, 512, 512);
+        test_tree_builder_aux(Some(BatcherType::GPU), 512, 32, 512, 512,0);
     }
 
     fn test_tree_builder_aux(
@@ -269,12 +270,13 @@ mod tests {
         num_batches: usize,
         max_leaf_batch_size: usize,
         max_tree_batch_size: usize,
+        gpu_index:usize,
     ) {
         let batch_size = leaves / num_batches;
 
         for rows_to_discard in 0..3 {
             let mut builder =
-                TreeBuilder::<U8>::new(batcher_type, leaves, max_tree_batch_size, rows_to_discard)
+                TreeBuilder::<U8>::new(batcher_type, leaves, max_tree_batch_size, rows_to_discard,gpu_index)
                     .unwrap();
 
             // Simplify computing the expected root.

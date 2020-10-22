@@ -38,14 +38,15 @@ where
         }
     }
 
-    pub(crate) fn new(t: &BatcherType, max_batch_size: usize) -> Result<Self, Error> {
-        Self::new_with_strength(DEFAULT_STRENGTH, t, max_batch_size)
+    pub(crate) fn new(t: &BatcherType, max_batch_size: usize, gpu_index:usize) -> Result<Self, Error> {
+        Self::new_with_strength(DEFAULT_STRENGTH, t, max_batch_size, gpu_index)
     }
 
     pub(crate) fn new_with_strength(
         strength: Strength,
         t: &BatcherType,
         max_batch_size: usize,
+        gpu_index:usize,
     ) -> Result<Self, Error> {
         match t {
             #[cfg(all(feature = "gpu", target_os = "macos"))]
@@ -54,7 +55,7 @@ where
             BatcherType::CustomGPU(_) => panic!("GPU unimplemented on macos"),
             #[cfg(all(feature = "gpu", not(target_os = "macos")))]
             BatcherType::GPU => Ok(Batcher::GPU(GPUBatchHasher::<A>::new_with_strength(
-                cl::default_futhark_context()?,
+                cl::default_futhark_context(gpu_index)?,
                 strength,
                 max_batch_size,
             )?)),

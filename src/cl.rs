@@ -5,7 +5,7 @@ use std::ptr;
 use std::sync::{Arc, Mutex};
 use triton::bindings;
 use triton::FutharkContext;
-use bellperson::gpu::alloc_gpu_device_index;
+//use bellperson::gpu::alloc_gpu_device_index;
 
 
 const MAX_LEN: usize = 128;
@@ -293,9 +293,9 @@ pub fn futhark_context(selector: GPUSelector) -> ClResult<Arc<Mutex<FutharkConte
     Ok(Arc::clone(&map[&bus_id]))
 }
 
-pub fn default_futhark_context() -> ClResult<Arc<Mutex<FutharkContext>>> {
-    let index = alloc_gpu_device_index();
-    futhark_context(GPUSelector::Index(index))
+pub fn default_futhark_context(gpu_inex:usize) -> ClResult<Arc<Mutex<FutharkContext>>> {
+    //let index = alloc_gpu_device_index();
+    futhark_context(GPUSelector::Index(gpu_inex))
     //futhark_context(GPUSelector::Index(0))
 }
 

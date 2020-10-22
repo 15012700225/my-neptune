@@ -111,6 +111,7 @@ where
         leaf_count: usize,
         max_column_batch_size: usize,
         max_tree_batch_size: usize,
+        gpu_index:usize,
     ) -> Result<Self, Error> {
         let builder = Self {
             leaf_count,
@@ -118,11 +119,11 @@ where
             fill_index: 0,
             column_constants: PoseidonConstants::<Bls12, ColumnArity>::new(),
             column_batcher: if let Some(t) = &t {
-                Some(Batcher::<ColumnArity>::new(t, max_column_batch_size)?)
+                Some(Batcher::<ColumnArity>::new(t, max_column_batch_size,gpu_index)?)
             } else {
                 None
             },
-            tree_builder: TreeBuilder::<TreeArity>::new(t, leaf_count, max_tree_batch_size, 0)?,
+            tree_builder: TreeBuilder::<TreeArity>::new(t, leaf_count, max_tree_batch_size, 0,gpu_index)?,
         };
 
         Ok(builder)
@@ -158,11 +159,11 @@ mod tests {
     #[test]
     fn test_column_tree_builder() {
         // 16KiB tree has 512 leaves.
-        test_column_tree_builder_aux(None, 512, 32, 512, 512);
-        test_column_tree_builder_aux(Some(BatcherType::CPU), 512, 32, 512, 512);
+        test_column_tree_builder_aux(None, 512, 32, 512, 512,0);
+        test_column_tree_builder_aux(Some(BatcherType::CPU), 512, 32, 512, 512,0);
 
         #[cfg(all(feature = "gpu", not(target_os = "macos")))]
-        test_column_tree_builder_aux(Some(BatcherType::GPU), 512, 32, 512, 512);
+        test_column_tree_builder_aux(Some(BatcherType::GPU), 512, 32, 512, 512,0);
     }
 
     fn test_column_tree_builder_aux(
@@ -171,6 +172,7 @@ mod tests {
         num_batches: usize,
         max_column_batch_size: usize,
         max_tree_batch_size: usize,
+        gpu_index:usize,
     ) {
         let batch_size = leaves / num_batches;
 
@@ -179,6 +181,7 @@ mod tests {
             leaves,
             max_column_batch_size,
             max_tree_batch_size,
+            gpu_index,
         )
         .unwrap();
 
