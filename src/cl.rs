@@ -194,6 +194,10 @@ fn get_device_by_bus_id(bus_id: u32) -> ClResult<bindings::cl_device_id> {
 fn get_all_devices() -> ClResult<Vec<bindings::cl_device_id>> {
     let mut devices = Vec::new();
     for platform in get_platforms()? {
+        info!(
+            "get device list for platform: {}!",
+            get_platform_name(platform)?
+        );
         if let Ok(devs) = get_devices(platform) {
             for dev in devs {
                 devices.push(dev);
