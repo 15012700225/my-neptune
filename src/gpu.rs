@@ -105,7 +105,7 @@ where
     A: Arity<Fr>,
 {
     /// Create a new `GPUBatchHasher` and initialize it with state corresponding with its `A`.
-    pub(crate) fn new(
+    pub fn new(
         ctx: Arc<Mutex<FutharkContext>>,
         max_batch_size: usize,
     ) -> Result<Self, Error> {

@@ -32,7 +32,7 @@ pub mod tree_builder;
 pub mod column_tree_builder;
 
 #[cfg(feature = "gpu")]
-mod gpu;
+pub mod gpu;
 
 #[cfg(feature = "gpu")]
 pub mod cl;
