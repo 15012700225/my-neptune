@@ -38,7 +38,7 @@ where
         }
     }
 
-    pub(crate) fn new(t: &BatcherType, max_batch_size: usize, gpu_index:usize) -> Result<Self, Error> {
+    pub fn new(t: &BatcherType, max_batch_size: usize, gpu_index:usize) -> Result<Self, Error> {
         Self::new_with_strength(DEFAULT_STRENGTH, t, max_batch_size, gpu_index)
     }
 
