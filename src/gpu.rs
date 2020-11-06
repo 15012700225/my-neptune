@@ -2,9 +2,9 @@ use crate::cl;
 use crate::error::Error;
 use crate::poseidon::PoseidonConstants;
 use crate::{Arity, BatchHasher, Strength, DEFAULT_STRENGTH};
+use bellperson::bls::{Bls12, Fr, FrRepr};
 use ff::{PrimeField, PrimeFieldDecodingError};
 use generic_array::{typenum, ArrayLength, GenericArray};
-use paired::bls12_381::{Bls12, Fr, FrRepr};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
@@ -126,13 +126,20 @@ where
             _a: PhantomData::<A>,
         })
     }
+
+    pub(crate) fn futhark_context(&self) -> Arc<Mutex<FutharkContext>> {
+        self.ctx.clone()
+    }
 }
 
 impl<A> Drop for GPUBatchHasher<A> {
     fn drop(&mut self) {
-        let ctx = self.ctx.lock().unwrap();
-        unsafe {
-            triton::bindings::futhark_context_clear_caches(ctx.context);
+        // Clear cache iff the Arc is the last one
+        if let Some(ctx) = Arc::get_mut(&mut self.ctx) {
+            let ctx = ctx.lock().unwrap();
+            unsafe {
+                triton::bindings::futhark_context_clear_caches(ctx.context);
+            }
         }
     }
 }
@@ -460,7 +467,7 @@ where
         .mbatch_hash2(state, input)
         .map_err(|e| Error::GPUError(format!("{:?}", e)))?;
 
-    let (vec, _shape) = res.to_vec();
+    let (vec, _shape) = res.to_vec()?;
     let frs = unpack_fr_array_from_monts(vec.as_slice())?;
 
     Ok((frs.to_vec(), state))
@@ -483,7 +490,7 @@ where
         .mbatch_hash8(state, input)
         .map_err(|e| Error::GPUError(format!("{:?}", e)))?;
 
-    let (vec, _shape) = res.to_vec();
+    let (vec, _shape) = res.to_vec()?;
     let frs = unpack_fr_array_from_monts(vec.as_slice())?;
 
     Ok((frs.to_vec(), state))
@@ -506,7 +513,7 @@ where
         .mbatch_hash11(state, input)
         .map_err(|e| Error::GPUError(format!("{:?}", e)))?;
 
-    let (vec, _shape) = res.to_vec();
+    let (vec, _shape) = res.to_vec()?;
     let frs = unpack_fr_array_from_monts(vec.as_slice())?;
 
     Ok((frs.to_vec(), state))
@@ -529,7 +536,7 @@ where
         .mbatch_hash2s(state, input)
         .map_err(|e| Error::GPUError(format!("{:?}", e)))?;
 
-    let (vec, _shape) = res.to_vec();
+    let (vec, _shape) = res.to_vec()?;
     let frs = unpack_fr_array_from_monts(vec.as_slice())?;
 
     Ok((frs.to_vec(), state))
@@ -552,7 +559,7 @@ where
         .mbatch_hash8s(state, input)
         .map_err(|e| Error::GPUError(format!("{:?}", e)))?;
 
-    let (vec, _shape) = res.to_vec();
+    let (vec, _shape) = res.to_vec()?;
     let frs = unpack_fr_array_from_monts(vec.as_slice())?;
 
     Ok((frs.to_vec(), state))
@@ -575,7 +582,7 @@ where
         .mbatch_hash11s(state, input)
         .map_err(|e| Error::GPUError(format!("{:?}", e)))?;
 
-    let (vec, _shape) = res.to_vec();
+    let (vec, _shape) = res.to_vec()?;
     let frs = unpack_fr_array_from_monts(vec.as_slice())?;
 
     Ok((frs.to_vec(), state))
@@ -600,13 +607,14 @@ mod tests {
     #[test]
     fn test_mbatch_hash2() {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
-        let mut state =
-            if let BatcherState::Arity2(s) = init_hash2(&mut ctx, Strength::Standard).unwrap() {
-                s
-            } else {
-                panic!("expected Arity2");
-            };
+        let ctx = cl::default_futhark_context().unwrap();
+        let mut state = if let BatcherState::Arity2(s) =
+            init_hash2(&mut ctx.lock().unwrap(), Strength::Standard).unwrap()
+        {
+            s
+        } else {
+            panic!("expected Arity2");
+        };
         let batch_size = 100;
 
         let mut gpu_hasher = GPUBatchHasher::<U2>::new_with_strength(
@@ -623,7 +631,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U2>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash2(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash2(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 
@@ -634,9 +643,9 @@ mod tests {
     #[test]
     fn test_mbatch_hash2s() {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
+        let ctx = cl::default_futhark_context().unwrap();
         let mut state = if let BatcherState::Arity2s(s) =
-            init_hash2(&mut ctx, Strength::Strengthened).unwrap()
+            init_hash2(&mut ctx.lock().unwrap(), Strength::Strengthened).unwrap()
         {
             s
         } else {
@@ -658,7 +667,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U2>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash2s(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash2s(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 
@@ -669,13 +679,14 @@ mod tests {
     #[test]
     fn test_mbatch_hash8() {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
-        let mut state =
-            if let BatcherState::Arity8(s) = init_hash8(&mut ctx, Strength::Standard).unwrap() {
-                s
-            } else {
-                panic!("expected Arity8");
-            };
+        let ctx = cl::default_futhark_context().unwrap();
+        let mut state = if let BatcherState::Arity8(s) =
+            init_hash8(&mut ctx.lock().unwrap(), Strength::Standard).unwrap()
+        {
+            s
+        } else {
+            panic!("expected Arity8");
+        };
         let batch_size = 100;
 
         let mut gpu_hasher = GPUBatchHasher::<U8>::new_with_strength(
@@ -692,7 +703,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U8>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash8(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash8(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 
@@ -703,9 +715,9 @@ mod tests {
     #[test]
     fn test_mbatch_hash8s() {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
+        let ctx = cl::default_futhark_context().unwrap();
         let mut state = if let BatcherState::Arity8s(s) =
-            init_hash8(&mut ctx, Strength::Strengthened).unwrap()
+            init_hash8(&mut ctx.lock().unwrap(), Strength::Strengthened).unwrap()
         {
             s
         } else {
@@ -727,7 +739,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U8>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash8s(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash8s(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 
@@ -738,13 +751,14 @@ mod tests {
     #[test]
     fn test_mbatch_hash11() {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
-        let mut state =
-            if let BatcherState::Arity11(s) = init_hash11(&mut ctx, Strength::Standard).unwrap() {
-                s
-            } else {
-                panic!("expected Arity11");
-            };
+        let ctx = cl::default_futhark_context().unwrap();
+        let mut state = if let BatcherState::Arity11(s) =
+            init_hash11(&mut ctx.lock().unwrap(), Strength::Standard).unwrap()
+        {
+            s
+        } else {
+            panic!("expected Arity11");
+        };
         let batch_size = 100;
 
         let mut gpu_hasher = GPUBatchHasher::<U11>::new_with_strength(
@@ -761,7 +775,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U11>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash11(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash11(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 
@@ -772,9 +787,9 @@ mod tests {
     #[test]
     fn test_mbatch_hash11s() {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
+        let ctx = cl::default_futhark_context().unwrap();
         let mut state = if let BatcherState::Arity11s(s) =
-            init_hash11(&mut ctx, Strength::Strengthened).unwrap()
+            init_hash11(&mut ctx.lock().unwrap(), Strength::Strengthened).unwrap()
         {
             s
         } else {
@@ -796,7 +811,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U11>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash11s(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash11s(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 
@@ -806,13 +822,14 @@ mod tests {
 
     fn test_mbatch_hash8_on_device(dev: Arc<Mutex<FutharkContext>>) {
         let mut rng = XorShiftRng::from_seed(crate::TEST_SEED);
-        let mut ctx = FutharkContext::new();
-        let mut state =
-            if let BatcherState::Arity8(s) = init_hash8(&mut ctx, Strength::Standard).unwrap() {
-                s
-            } else {
-                panic!("expected Arity8");
-            };
+        let ctx = cl::default_futhark_context().unwrap();
+        let mut state = if let BatcherState::Arity8(s) =
+            init_hash8(&mut ctx.lock().unwrap(), Strength::Standard).unwrap()
+        {
+            s
+        } else {
+            panic!("expected Arity8");
+        };
         let batch_size = 100;
 
         let mut gpu_hasher =
@@ -825,7 +842,8 @@ mod tests {
             .map(|_| GenericArray::<Fr, U8>::generate(|_| Fr::random(&mut rng)))
             .collect::<Vec<_>>();
 
-        let (hashes, _) = mbatch_hash8(&mut ctx, &mut state, preimages.as_slice()).unwrap();
+        let (hashes, _) =
+            mbatch_hash8(&mut ctx.lock().unwrap(), &mut state, preimages.as_slice()).unwrap();
         let gpu_hashes = gpu_hasher.hash(&preimages).unwrap();
         let expected_hashes: Vec<_> = simple_hasher.hash(&preimages).unwrap();
 

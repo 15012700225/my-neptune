@@ -1,12 +1,13 @@
 use crate::batch_hasher::{Batcher, BatcherType};
+#[cfg(all(feature = "gpu", not(target_os = "macos")))]
 use crate::cl::GPUSelector;
 use crate::error::Error;
 use crate::poseidon::{Poseidon, PoseidonConstants};
 use crate::tree_builder::{TreeBuilder, TreeBuilderTrait};
 use crate::{Arity, BatchHasher};
+use bellperson::bls::{Bls12, Fr};
 use ff::Field;
 use generic_array::GenericArray;
-use paired::bls12_381::{Bls12, Fr};
 
 pub trait ColumnTreeBuilderTrait<ColumnArity, TreeArity>
 where
@@ -113,27 +114,34 @@ where
         max_tree_batch_size: usize,
         gpu_index: usize,
     ) -> Result<Self, Error> {
-        let builder = Self {
-            leaf_count,
-            data: vec![Fr::zero(); leaf_count],
-            fill_index: 0,
-            column_constants: PoseidonConstants::<Bls12, ColumnArity>::new(),
-            column_batcher: if let Some(t) = &t {
-                Some(Batcher::<ColumnArity>::new(
-                    t,
-                    max_column_batch_size,
-                    gpu_index,
-                )?)
-            } else {
-                None
-            },
-            tree_builder: TreeBuilder::<TreeArity>::new(
-                t,
+        let column_batcher = match &t {
+            Some(t) => Some(Batcher::<ColumnArity>::new(t, max_column_batch_size, gpu_index)?),
+            None => None,
+        };
+
+        let tree_builder = match {
+            match &column_batcher {
+                Some(b) => b.futhark_context(),
+                None => None,
+            }
+        } {
+            Some(ctx) => TreeBuilder::<TreeArity>::new(
+                Some(BatcherType::FromFutharkContext(ctx)),
                 leaf_count,
                 max_tree_batch_size,
                 0,
                 gpu_index,
             )?,
+            None => TreeBuilder::<TreeArity>::new(t, leaf_count, max_tree_batch_size, 0, gpu_index)?,
+        };
+
+        let builder = Self {
+            leaf_count,
+            data: vec![Fr::zero(); leaf_count],
+            fill_index: 0,
+            column_constants: PoseidonConstants::<Bls12, ColumnArity>::new(),
+            column_batcher,
+            tree_builder,
         };
 
         Ok(builder)
@@ -161,10 +169,10 @@ mod tests {
     use super::*;
     use crate::poseidon::Poseidon;
     use crate::BatchHasher;
+    use bellperson::bls::Fr;
     use ff::Field;
     use generic_array::sequence::GenericSequence;
     use generic_array::typenum::{U11, U8};
-    use paired::bls12_381::Fr;
 
     #[test]
     fn test_column_tree_builder() {
