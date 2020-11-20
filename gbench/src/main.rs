@@ -8,9 +8,11 @@ use neptune::batch_hasher::BatcherType;
 use neptune::column_tree_builder::{ColumnTreeBuilder, ColumnTreeBuilderTrait};
 use neptune::error::Error;
 use neptune::BatchHasher;
+use rust_gpu_tools::opencl::GPUSelector;
 use std::result::Result;
 use std::thread;
 use std::time::Instant;
+use structopt::StructOpt;
 
 fn bench_column_building(
     log_prefix: &str,
@@ -96,15 +98,28 @@ fn bench_column_building(
     res[res.len() - 1]
 }
 
+#[derive(Debug, StructOpt, Clone, Copy)]
+#[structopt(name = "Neptune gbench", about = "Neptune benchmarking program")]
+struct Opts {
+    #[structopt(long = "max-tree-batch-size", default_value = "700000")]
+    max_tree_batch_size: usize,
+    #[structopt(long = "max-column-batch-size", default_value = "400000")]
+    max_column_batch_size: usize,
+}
+
 fn main() -> Result<(), Error> {
+    #[cfg(all(feature = "gpu", target_os = "macos"))]
+    unimplemented!("Running on macos is not recommended and may have bad consequences -- experiment at your own risk.");
     env_logger::init();
+
+    let opts = Opts::from_args();
 
     let kib = 1024 * 1024 * 4; // 4GiB
                                // let kib = 1024 * 512; // 512MiB
     let bytes = kib * 1024;
     let leaves = bytes / 32;
-    let max_column_batch_size = 400000;
-    let max_tree_batch_size = 700000;
+    let max_column_batch_size = opts.max_column_batch_size;
+    let max_tree_batch_size = opts.max_tree_batch_size;
 
     info!("KiB: {}", kib);
     info!("leaves: {}", leaves);
@@ -118,7 +133,7 @@ fn main() -> Result<(), Error> {
         .map(|v| {
             v.split(",")
                 .map(|s| s.parse::<u32>().expect("Invalid Bus-Id number!"))
-                .map(|bus_id| BatcherType::CustomGPU(neptune::cl::GPUSelector::BusId(bus_id)))
+                .map(|bus_id| BatcherType::CustomGPU(GPUSelector::BusId(bus_id)))
                 .collect::<Vec<_>>()
         })
         .unwrap_or(vec![BatcherType::GPU]);

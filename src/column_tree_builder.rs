@@ -1,8 +1,5 @@
 use crate::batch_hasher::{Batcher, BatcherType};
 
-#[cfg(all(feature = "gpu", not(target_os = "macos")))]
-
-use crate::cl::GPUSelector;
 use crate::error::Error;
 use crate::poseidon::{Poseidon, PoseidonConstants};
 use crate::tree_builder::{TreeBuilder, TreeBuilderTrait};
@@ -10,6 +7,8 @@ use crate::{Arity, BatchHasher};
 use bellperson::bls::{Bls12, Fr};
 use ff::Field;
 use generic_array::GenericArray;
+#[cfg(all(feature = "gpu", not(target_os = "macos")))]
+use rust_gpu_tools::opencl::GPUSelector;
 
 pub trait ColumnTreeBuilderTrait<ColumnArity, TreeArity>
 where
@@ -166,6 +165,7 @@ where
     }
 }
 
+#[cfg(all(feature = "gpu", not(target_os = "macos")))]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,8 +182,10 @@ mod tests {
         test_column_tree_builder_aux(None, 512, 32, 512, 512, 0);
         test_column_tree_builder_aux(Some(BatcherType::CPU), 512, 32, 512, 512, 0);
 
-        #[cfg(all(feature = "gpu", not(target_os = "macos")))]
-        test_column_tree_builder_aux(Some(BatcherType::GPU), 512, 32, 512, 512, 0);
+
+        #[cfg(feature = "gpu")]
+        test_column_tree_builder_aux(Some(BatcherType::GPU), 512, 32, 512, 512,0);
+
     }
 
     fn test_column_tree_builder_aux(
