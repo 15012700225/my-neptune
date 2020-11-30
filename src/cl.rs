@@ -7,7 +7,6 @@ use triton::bindings;
 use triton::FutharkContext;
 //use bellperson::gpu::alloc_gpu_device_index;
 
-
 const MAX_LEN: usize = 128;
 
 #[repr(C)]
@@ -19,8 +18,6 @@ struct cl_amd_device_topology {
     device: u8,
     function: u8,
 }
-
-
 
 /*
 #[derive(Debug, Clone, Default)]
@@ -54,7 +51,6 @@ pub enum ClError {
     CannotCreateQueue,
 }
 pub type ClResult<T> = std::result::Result<T, ClError>;
-
 
 impl fmt::Display for ClError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -194,7 +190,6 @@ fn get_device_by_bus_id(bus_id: u32) -> ClResult<bindings::cl_device_id> {
 fn get_all_devices() -> ClResult<Vec<bindings::cl_device_id>> {
     let mut devices = Vec::new();
 
-
     let mut platforms = get_platforms()?;
 
     if let Ok(platform) = get_platform_by_name("NVIDIA CUDA") {
@@ -207,8 +202,10 @@ fn get_all_devices() -> ClResult<Vec<bindings::cl_device_id>> {
         platforms.insert(0, platform);
     }
 
+    let mut s = String::new();
     for platform in platforms {
-
+        s += &get_platform_name(platform)?;
+        s += " ";
         if let Ok(devs) = get_devices(platform) {
             for dev in devs {
                 devices.push(dev);
@@ -220,6 +217,7 @@ fn get_all_devices() -> ClResult<Vec<bindings::cl_device_id>> {
             );
         }
     }
+    info!("platforms: {}", s);
     Ok(devices)
 }
 
@@ -264,7 +262,16 @@ impl GPUSelector {
     pub fn get_bus_id(&self) -> ClResult<u32> {
         match self {
             GPUSelector::BusId(bus_id) => Ok(*bus_id),
-            GPUSelector::Index(index) => Ok(get_bus_id(get_all_devices()?[*index])?),
+            GPUSelector::Index(index) => Ok(get_bus_id(
+                {
+                    let tmp = get_all_devices()?;
+                    if tmp.is_empty() {
+                        info!("no GPU device found");
+                        return Err(ClError::DeviceNotFound);
+                    }
+                    tmp
+                }[*index],
+            )?),
         }
     }
 }
@@ -311,7 +318,7 @@ pub fn futhark_context(selector: GPUSelector) -> ClResult<Arc<Mutex<FutharkConte
     Ok(Arc::clone(&map[&bus_id]))
 }
 
-pub fn default_futhark_context(gpu_inex:usize) -> ClResult<Arc<Mutex<FutharkContext>>> {
+pub fn default_futhark_context(gpu_inex: usize) -> ClResult<Arc<Mutex<FutharkContext>>> {
     //let index = alloc_gpu_device_index();
     futhark_context(GPUSelector::Index(gpu_inex))
     //futhark_context(GPUSelector::Index(0))
