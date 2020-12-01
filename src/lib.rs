@@ -168,7 +168,7 @@ pub(crate) fn quintic_s_box<E: ScalarEngine>(
         l.add_assign(x);
     }
     let c = *l;
-    let mut tmp = l.clone();
+    let mut tmp = *l;
     tmp.mul_assign(&c);
     tmp.mul_assign(&tmp.clone());
     l.mul_assign(&tmp);
