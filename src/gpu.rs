@@ -219,14 +219,14 @@ fn frs_2d_to_u64s(frs_2d: &[Vec<Fr>]) -> Vec<u64> {
 
 fn array_u64_1d_from_fr(ctx: &FutharkContext, fr: Fr) -> Result<Array_u64_1d, Error> {
     Array_u64_1d::from_vec(*ctx, &fr.into_repr().0, &[4, 1])
-        .map_err(|e| Error::Other(format!("error converting Fr: {:?}", e).to_string()))
+        .map_err(|e| Error::Other(format!("error converting Fr: {:?}", e)))
 }
 
 fn array_u64_1d_from_frs(ctx: &FutharkContext, frs: &[Fr]) -> Result<Array_u64_1d, Error> {
     let u64s = frs_to_u64s(frs);
 
     Array_u64_1d::from_vec(*ctx, u64s.as_slice(), &[(frs.len() * 4) as i64, 1])
-        .map_err(|e| Error::Other(format!("error converting Fr: {:?}", e).to_string()))
+        .map_err(|e| Error::Other(format!("error converting Fr: {:?}", e)))
 }
 
 fn array_u64_2d_from_frs(ctx: &FutharkContext, frs: &[Fr]) -> Result<Array_u64_2d, Error> {
