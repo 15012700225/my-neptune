@@ -191,7 +191,7 @@ fn get_device_by_bus_id(bus_id: u32) -> ClResult<bindings::cl_device_id> {
     Err(ClError::DeviceNotFound)
 }
 
-fn get_all_devices() -> ClResult<Vec<bindings::cl_device_id>> {
+pub fn get_all_devices() -> ClResult<Vec<bindings::cl_device_id>> {
     let mut devices = Vec::new();
     for platform in get_platforms()? {
         info!(
