@@ -101,7 +101,7 @@ fn round_numbers_base(arity: usize) -> (usize, usize) {
         16 | 17 | 25 => 59,
         37 => 60,
         65 => 61,
-        _ => panic!(format!("unsupported arity, {}", arity)),
+        _ => panic!("unsupported arity, {}", arity),
     };
 
     (full_rounds, partial_rounds)

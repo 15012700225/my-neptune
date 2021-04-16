@@ -179,12 +179,9 @@ where
 }
 
 pub fn get_device(selector: &GPUSelector) -> Result<&'static opencl::Device, Error> {
-    if let Some(device) = selector.get_device() {
-        info!("device: {:?}", device);
-        Ok(device)
-    } else {
-        return Err(Error::ClError(ClError::BusIdNotAvailable));
-    }
+    selector
+        .get_device()
+        .ok_or(Error::ClError(ClError::BusIdNotAvailable))
 }
 
 impl<A> CLBatchHasher<A>

@@ -12,7 +12,7 @@ use crate::triton::cl;
 use crate::{Arity, BatchHasher, Strength, DEFAULT_STRENGTH};
 use bellperson::bls::Fr;
 use generic_array::GenericArray;
-use rust_gpu_tools::opencl::GPUSelector;
+pub type GPUSelector = rust_gpu_tools::opencl::GPUSelector;
 
 #[cfg(feature = "gpu")]
 use triton::FutharkContext;
@@ -69,7 +69,7 @@ impl<A> Batcher<A>
 where
     A: Arity<Fr>,
 {
-    pub(crate) fn t(&self) -> BatcherType {
+    pub fn t(&self) -> BatcherType {
         match self {
             #[cfg(feature = "gpu")]
             Batcher::GPU(_) => BatcherType::GPU,
@@ -79,7 +79,7 @@ where
         }
     }
 
-    pub(crate) fn new(t: &BatcherType, max_batch_size: usize) -> Result<Self, Error> {
+    pub fn new(t: &BatcherType, max_batch_size: usize) -> Result<Self, Error> {
         Self::new_with_strength(DEFAULT_STRENGTH, t, max_batch_size)
     }
 
