@@ -156,16 +156,6 @@ impl<A> BatchHasher<A> for Batcher<A>
 where
     A: Arity<Fr>,
 {
-    fn hash(&mut self, preimages: &[GenericArray<Fr, A>]) -> Result<Vec<Fr>, Error> {
-        match self {
-            Batcher::CPU(batcher) => batcher.hash(preimages),
-            #[cfg(feature = "gpu")]
-            Batcher::GPU(batcher) => batcher.hash(preimages),
-            #[cfg(feature = "opencl")]
-            Batcher::OpenCL(batcher) => batcher.hash(preimages),
-        }
-    }
-
     fn max_batch_size(&self) -> usize {
         match self {
             Batcher::CPU(batcher) => batcher.max_batch_size(),
@@ -173,6 +163,20 @@ where
             Batcher::GPU(batcher) => batcher.max_batch_size(),
             #[cfg(feature = "opencl")]
             Batcher::OpenCL(batcher) => batcher.max_batch_size(),
+        }
+    }
+
+    fn hash_into_slice(
+        &mut self,
+        target_slice: &mut [Fr],
+        preimages: &[GenericArray<Fr, A>],
+    ) -> Result<(), Error> {
+        match self {
+            Batcher::CPU(batcher) => batcher.hash_into_slice(target_slice, preimages),
+            #[cfg(feature = "gpu")]
+            Batcher::GPU(batcher) => batcher.hash_into_slice(target_slice, preimages),
+            #[cfg(feature = "opencl")]
+            Batcher::OpenCL(batcher) => batcher.hash_into_slice(target_slice, preimages),
         }
     }
 }

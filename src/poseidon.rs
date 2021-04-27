@@ -415,7 +415,10 @@ where
             .for_each(|(l, post)| {
                 // Be explicit that no round key is added after last round of S-boxes.
                 let post_key = if last_round {
-                    panic!("Trying to skip last full round, but there is a key here! ({})", post);
+                    panic!(
+                        "Trying to skip last full round, but there is a key here! ({})",
+                        post
+                    );
                 } else {
                     Some(post)
                 };
@@ -561,15 +564,19 @@ impl<A> BatchHasher<A> for SimplePoseidonBatchHasher<A>
 where
     A: Arity<Fr>,
 {
-    fn hash(&mut self, preimages: &[GenericArray<Fr, A>]) -> Result<Vec<Fr>, Error> {
-        Ok(preimages
-            .iter()
-            .map(|preimage| Poseidon::new_with_preimage(&preimage, &self.constants).hash())
-            .collect())
-    }
-
     fn max_batch_size(&self) -> usize {
         self.max_batch_size
+    }
+
+    fn hash_into_slice(
+        &mut self,
+        target_slice: &mut [Fr],
+        preimages: &[GenericArray<Fr, A>],
+    ) -> Result<(), Error> {
+        for (preimage, target) in preimages.iter().zip(target_slice.iter_mut()) {
+            *target = Poseidon::new_with_preimage(&preimage, &self.constants).hash()
+        }
+        Ok(())
     }
 }
 

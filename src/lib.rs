@@ -65,19 +65,17 @@ where
 {
     // type State;
 
-    fn hash(&mut self, preimages: &[GenericArray<Scalar, A>]) -> Result<Vec<Scalar>, Error>;
+    fn hash(&mut self, preimages: &[GenericArray<Scalar, A>]) -> Result<Vec<Scalar>, Error> {
+        let mut frs = vec![Scalar::zero(); preimages.len()];
+        self.hash_into_slice(&mut frs, preimages)?;
+        Ok(frs)
+    }
 
     fn hash_into_slice(
         &mut self,
         target_slice: &mut [Scalar],
         preimages: &[GenericArray<Scalar, A>],
-    ) -> Result<(), Error> {
-        assert_eq!(target_slice.len(), preimages.len());
-        // FIXME: Account for max batch size.
-
-        Ok(target_slice.copy_from_slice(self.hash(preimages)?.as_slice()))
-    }
-
+    ) -> Result<(), Error>;
     /// `max_batch_size` is advisory. Implenters of `BatchHasher` should ensure that up to the returned max hashes can
     /// be safely performed on the target GPU (currently 2080Ti). The max returned should represent a safe batch size
     /// optimized for performance.
