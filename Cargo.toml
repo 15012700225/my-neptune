@@ -9,7 +9,7 @@ repository = "https://github.com/filecoin-project/neptune"
 
 [dependencies]
 lazy_static = "1.4.0"
-bellperson = { version = "0.13", path = "../my-bellman", default-features = false }
+bellperson = { version = "0.13", default-features = false }
 blake2s_simd = "0.5"
 blstrs = { version = "0.2.0", optional = true }
 byteorder = "1"
